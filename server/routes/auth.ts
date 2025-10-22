@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { google } from 'googleapis';
 import { createSession, setSessionCookie, clearSessionCookie, getSessionFromRequest } from '../auth';
-import { upsertUser } from '../db';
+import { upsertUser, getDb } from '../db';
+import { users } from '../../drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
 const router = Router();
@@ -48,8 +50,24 @@ router.get('/auth/google/callback', async (req, res) => {
       return res.status(400).send('Could not get user email');
     }
 
-    // Create or update user in database
-    const userId = nanoid();
+    // Check if user already exists
+    const db = await getDb();
+    if (!db) {
+      return res.status(500).send('Database not available');
+    }
+
+    let existingUser = await db.select().from(users).where(eq(users.email, data.email)).limit(1);
+    let userId: string;
+
+    if (existingUser.length > 0) {
+      // User exists, use their ID
+      userId = existingUser[0].id;
+    } else {
+      // New user, create new ID
+      userId = nanoid();
+    }
+
+    // Upsert user
     await upsertUser({
       id: userId,
       email: data.email,
