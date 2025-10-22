@@ -31,11 +31,18 @@ let _pool: mysql.Pool | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
+      console.log('[Database] Creating connection pool...');
+      console.log('[Database] URL prefix:', process.env.DATABASE_URL.substring(0, 20) + '...');
       _pool = mysql.createPool(process.env.DATABASE_URL);
       _db = drizzle(_pool);
-      console.log('[Database] Connected successfully');
+      console.log('[Database] Pool created, testing connection...');
+      // Test the connection
+      await _pool.query('SELECT 1');
+      console.log('[Database] Connection test successful');
     } catch (error) {
       console.error("[Database] Failed to connect:", error);
+      console.error("[Database] Error details:", error.message);
+      console.error("[Database] Error code:", error.code);
       _db = null;
       _pool = null;
     }
