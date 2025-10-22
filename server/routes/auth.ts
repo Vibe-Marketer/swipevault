@@ -1,14 +1,29 @@
 import { Router } from 'express';
-import { getAuthUrl, exchangeCodeForTokens, getUserEmail } from '../services/gmail';
-import { createSession, setSessionCookie, clearSessionCookie } from '../auth';
-import { upsertUser, getUser } from '../db';
+import { google } from 'googleapis';
+import { createSession, setSessionCookie, clearSessionCookie, getSessionFromRequest } from '../auth';
+import { upsertUser } from '../db';
 import { nanoid } from 'nanoid';
 
 const router = Router();
 
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
+
 // Get Google OAuth URL
 router.get('/auth/google', (req, res) => {
-  const authUrl = getAuthUrl();
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.modify',
+    ],
+    prompt: 'consent',
+  });
   res.redirect(authUrl);
 });
 
@@ -22,21 +37,10 @@ router.get('/auth/google/callback', async (req, res) => {
     }
 
     // Exchange code for tokens
-    const { accessToken, refreshToken } = await exchangeCodeForTokens(code);
-    
-    // Get user email from Google
-    const { google } = await import('googleapis');
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
-    );
-    
-    oauth2Client.setCredentials({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    // Get user info
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const { data } = await oauth2.userinfo.get();
     
@@ -44,7 +48,7 @@ router.get('/auth/google/callback', async (req, res) => {
       return res.status(400).send('Could not get user email');
     }
 
-    // Create or update user
+    // Create or update user in database
     const userId = nanoid();
     await upsertUser({
       id: userId,
@@ -54,29 +58,11 @@ router.get('/auth/google/callback', async (req, res) => {
       lastSignedIn: new Date(),
     });
 
-    // Get user from database
-    let user = await getUser(userId);
-    if (!user) {
-      // If user doesn't exist, find by email
-      const { getDb } = await import('../db');
-      const { users } = await import('../../drizzle/schema');
-      const { eq } = await import('drizzle-orm');
-      const db = await getDb();
-      if (db) {
-        const result = await db.select().from(users).where(eq(users.email, data.email)).limit(1);
-        user = result[0];
-      }
-    }
-
-    if (!user) {
-      return res.status(500).send('Failed to create user');
-    }
-
     // Create session
     const sessionToken = createSession({
-      id: user.id,
-      email: user.email!,
-      name: user.name || '',
+      id: userId,
+      email: data.email,
+      name: data.name || '',
     });
 
     setSessionCookie(res, sessionToken);
@@ -97,7 +83,6 @@ router.post('/auth/logout', (req, res) => {
 
 // Get current user
 router.get('/auth/me', (req, res) => {
-  const { getSessionFromRequest } = require('../auth');
   const user = getSessionFromRequest(req);
   res.json(user);
 });
