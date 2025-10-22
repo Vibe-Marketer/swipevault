@@ -39,7 +39,11 @@ router.get('/auth/google/callback', async (req, res) => {
     }
 
     // Exchange code for tokens
+    console.log('[OAuth] Exchanging code for tokens...');
+    console.log('[OAuth] Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 20) + '...');
+    console.log('[OAuth] Redirect URI:', process.env.GOOGLE_REDIRECT_URI);
     const { tokens } = await oauth2Client.getToken(code);
+    console.log('[OAuth] Token exchange successful');
     oauth2Client.setCredentials(tokens);
 
     // Get user info
@@ -88,8 +92,13 @@ router.get('/auth/google/callback', async (req, res) => {
     // Redirect to home
     res.redirect('/');
   } catch (error) {
-    console.error('OAuth callback error:', error);
-    console.error('Error details:', JSON.stringify(error, null, 2));
+    console.error('[OAuth] Callback error:', error);
+    if (error.response) {
+      console.error('[OAuth] Response status:', error.response.status);
+      console.error('[OAuth] Response data:', JSON.stringify(error.response.data, null, 2));
+    }
+    console.error('[OAuth] Error message:', error.message);
+    console.error('[OAuth] Error stack:', error.stack);
     res.status(500).send(`Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 });
