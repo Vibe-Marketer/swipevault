@@ -49,8 +49,8 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   // In production, the built files are in dist/public at the project root
-  // import.meta.dirname is server/_core, so we need to go up two levels
-  const distPath = path.resolve(import.meta.dirname, "../..", "dist", "public");
+  // Use process.cwd() which is the project root in Railway
+  const distPath = path.resolve(process.cwd(), "dist", "public");
   if (!fs.existsSync(distPath)) {
     console.error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
