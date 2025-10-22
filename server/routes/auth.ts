@@ -89,7 +89,8 @@ router.get('/auth/google/callback', async (req, res) => {
     res.redirect('/');
   } catch (error) {
     console.error('OAuth callback error:', error);
-    res.status(500).send('Authentication failed');
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    res.status(500).send(`Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 });
 
