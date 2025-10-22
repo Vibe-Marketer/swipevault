@@ -17,14 +17,13 @@ const oauth2Client = new google.auth.OAuth2(
 // Get Google OAuth URL
 router.get('/auth/google', (req, res) => {
   const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
+    access_type: 'online',
     scope: [
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/gmail.modify',
     ],
-    prompt: 'consent',
   });
   res.redirect(authUrl);
 });
