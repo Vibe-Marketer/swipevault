@@ -274,10 +274,14 @@ class SDKServer {
     if (!user) {
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+        if (!userInfo.email) {
+          throw new Error('email missing from OAuth user info');
+        }
+
         await db.upsertUser({
           id: userInfo.openId,
           name: userInfo.name || null,
-          email: userInfo.email ?? null,
+          email: userInfo.email.toLowerCase(),
           loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
           lastSignedIn: signedInAt,
         });
@@ -294,6 +298,7 @@ class SDKServer {
 
     await db.upsertUser({
       id: user.id,
+      email: user.email,
       lastSignedIn: signedInAt,
     });
 

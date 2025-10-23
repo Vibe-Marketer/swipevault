@@ -49,19 +49,19 @@ export const aiWorker = redisAvailable ? new Worker(
 
 // Event handlers (only if workers exist)
 if (redisAvailable) {
-  emailWorker?.on('completed', (job) => {
+  emailWorker?.on('completed', (job: Job) => {
     console.log(`[EmailWorker] Job ${job.id} completed`);
   });
 
-  emailWorker?.on('failed', (job, err) => {
+  emailWorker?.on('failed', (job: Job | undefined, err: Error) => {
     console.error(`[EmailWorker] Job ${job?.id} failed:`, err);
   });
 
-  aiWorker?.on('completed', (job) => {
+  aiWorker?.on('completed', (job: Job) => {
     console.log(`[AIWorker] Job ${job.id} completed`);
   });
 
-  aiWorker?.on('failed', (job, err) => {
+  aiWorker?.on('failed', (job: Job | undefined, err: Error) => {
     console.error(`[AIWorker] Job ${job?.id} failed:`, err);
   });
 

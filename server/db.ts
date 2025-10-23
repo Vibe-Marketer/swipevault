@@ -1,9 +1,10 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from 'mysql2/promise';
-import { 
-  InsertUser, 
-  users, 
+import {
+  InsertUser,
+  users,
+  User,
   connectedMailboxes,
   ConnectedMailbox,
   InsertConnectedMailbox,
@@ -34,15 +35,17 @@ export async function getDb() {
       console.log('[Database] Creating connection pool...');
       console.log('[Database] URL prefix:', process.env.DATABASE_URL.substring(0, 20) + '...');
       _pool = mysql.createPool(process.env.DATABASE_URL);
-      _db = drizzle(_pool);
+      _db = drizzle(_pool as any);
       console.log('[Database] Pool created, testing connection...');
       // Test the connection
       await _pool.query('SELECT 1');
       console.log('[Database] Connection test successful');
     } catch (error) {
       console.error("[Database] Failed to connect:", error);
-      console.error("[Database] Error details:", error.message);
-      console.error("[Database] Error code:", error.code);
+      if (error instanceof Error) {
+        console.error("[Database] Error details:", error.message);
+        console.error("[Database] Error stack:", error.stack);
+      }
       _db = null;
       _pool = null;
     }
@@ -52,7 +55,9 @@ export async function getDb() {
 
 // ============= USER OPERATIONS =============
 
-export async function upsertUser(user: InsertUser): Promise<void> {
+type UpsertUserInput = Omit<InsertUser, 'email'> & { email?: string };
+
+export async function upsertUser(user: UpsertUserInput): Promise<void> {
   if (!user.id) {
     throw new Error("User ID is required for upsert");
   }
@@ -64,12 +69,29 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
+    let normalizedEmail = user.email?.toLowerCase();
+
+    if (!normalizedEmail) {
+      const existing = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      normalizedEmail = existing[0]?.email ?? undefined;
+    }
+
+    if (!normalizedEmail) {
+      throw new Error("Email is required to upsert user");
+    }
+
     const values: InsertUser = {
       id: user.id,
+      email: normalizedEmail,
     };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "loginMethod", "passwordHash"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -81,6 +103,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
 
     textFields.forEach(assignNullable);
+
+    updateSet.email = normalizedEmail;
 
     if (user.lastSignedIn !== undefined) {
       values.lastSignedIn = user.lastSignedIn;
@@ -116,6 +140,36 @@ export async function getUser(id: string) {
 
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getUserByEmail(email: string): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user by email: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createUser(user: InsertUser): Promise<User> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database not available");
+  }
+
+  const normalizedEmail = user.email?.toLowerCase();
+  if (!normalizedEmail) {
+    throw new Error("Email is required to create user");
+  }
+
+  await db.insert(users).values({
+    ...user,
+    email: normalizedEmail,
+  });
+  const result = await db.select().from(users).where(eq(users.id, user.id!)).limit(1);
+  return result[0];
 }
 
 // ============= MAILBOX OPERATIONS =============

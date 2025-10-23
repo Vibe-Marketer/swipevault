@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import path from 'path';
 import fs from 'fs';
-import authRoutes from './routes/auth';
+import apiRouter from './routes/api';
 
 const app = express();
 const server = createServer(app);
@@ -14,8 +14,8 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
-// Auth routes
-app.use('/api', authRoutes);
+// API routes
+app.use('/api', apiRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -43,8 +43,15 @@ if (process.env.NODE_ENV === 'production') {
   });
 } else {
   // Development mode with Vite
-  const { setupVite } = await import('./_core/vite');
-  await setupVite(app, server);
+  const startVite = async () => {
+    const { setupVite } = await import('./_core/vite');
+    await setupVite(app, server);
+  };
+
+  startVite().catch(error => {
+    console.error('Failed to start Vite in development:', error);
+    process.exit(1);
+  });
 }
 
 const PORT = process.env.PORT || 3000;
