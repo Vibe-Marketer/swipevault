@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 import { createSession, setSessionCookie, clearSessionCookie, getSessionFromRequest } from '../../auth';
 import { createUser, getUser, getUserByEmail, upsertUser } from '../../db';
 import { hashPassword, verifyPassword } from '../../utils/password';
+import { authLimiter } from '../../middleware/rateLimiter';
 
 const router = Router();
 
@@ -25,7 +26,7 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-router.post('/auth/register', async (req, res) => {
+router.post('/auth/register', authLimiter, async (req, res) => {
   const parseResult = registerSchema.safeParse(req.body);
 
   if (!parseResult.success) {
@@ -79,7 +80,7 @@ router.post('/auth/register', async (req, res) => {
   }
 });
 
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', authLimiter, async (req, res) => {
   const parseResult = loginSchema.safeParse(req.body);
 
   if (!parseResult.success) {

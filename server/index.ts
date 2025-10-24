@@ -5,9 +5,14 @@ import { createServer } from 'http';
 import path from 'path';
 import fs from 'fs';
 import apiRouter from './routes/api';
+import { securityHeaders, corsMiddleware } from './middleware/security';
 
 const app = express();
 const server = createServer(app);
+
+// Security middleware
+app.use(securityHeaders);
+app.use(corsMiddleware);
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));

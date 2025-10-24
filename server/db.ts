@@ -358,6 +358,51 @@ export async function removeSwipeFromCollection(collectionId: string, swipeId: s
     ));
 }
 
+export async function getSwipesByCollection(collectionId: string): Promise<EmailSwipe[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const result = await db.select({
+    id: emailSwipes.id,
+    userId: emailSwipes.userId,
+    mailboxId: emailSwipes.mailboxId,
+    gmailMessageId: emailSwipes.gmailMessageId,
+    threadId: emailSwipes.threadId,
+    subject: emailSwipes.subject,
+    senderEmail: emailSwipes.senderEmail,
+    senderName: emailSwipes.senderName,
+    recipientEmail: emailSwipes.recipientEmail,
+    receivedDate: emailSwipes.receivedDate,
+    htmlBody: emailSwipes.htmlBody,
+    plainBody: emailSwipes.plainBody,
+    snippet: emailSwipes.snippet,
+    isHtml: emailSwipes.isHtml,
+    hasImages: emailSwipes.hasImages,
+    aiClassification: emailSwipes.aiClassification,
+    aiInsights: emailSwipes.aiInsights,
+    embeddingVectorId: emailSwipes.embeddingVectorId,
+    isFavorite: emailSwipes.isFavorite,
+    notes: emailSwipes.notes,
+    manualTags: emailSwipes.manualTags,
+    createdAt: emailSwipes.createdAt,
+    updatedAt: emailSwipes.updatedAt,
+  })
+    .from(collectionSwipes)
+    .innerJoin(emailSwipes, eq(collectionSwipes.swipeId, emailSwipes.id))
+    .where(eq(collectionSwipes.collectionId, collectionId))
+    .orderBy(desc(collectionSwipes.addedAt));
+
+  return result;
+}
+
+export async function getCollectionById(collectionId: string): Promise<Collection | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(collections).where(eq(collections.id, collectionId)).limit(1);
+  return result[0];
+}
+
 // ============= JOB LOG OPERATIONS =============
 
 export async function createJobLog(jobLog: InsertJobLog): Promise<void> {

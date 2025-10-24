@@ -3,6 +3,7 @@ import { getRedisClient } from '../services/redis';
 import { config } from '../config';
 import { processEmailNotification } from './processors/emailProcessor';
 import { processAIClassification } from './processors/aiProcessor';
+import { processInitialSync, processManualSync } from './processors/syncProcessor';
 
 // Skip queue initialization in development without Redis
 const redisAvailable = !!(process.env.REDIS_HOST || process.env.NODE_ENV === 'production');
@@ -25,8 +26,23 @@ export const aiQueue = redisAvailable ? new Queue('ai-classification', {
 export const emailWorker = redisAvailable ? new Worker(
   'email-notifications',
   async (job: Job) => {
-    console.log(`[EmailWorker] Processing job ${job.id}`);
-    await processEmailNotification(job.data);
+    console.log(`[EmailWorker] Processing job ${job.id} (${job.name})`);
+
+    // Route to appropriate processor based on job name
+    switch (job.name) {
+      case 'process-gmail-notification':
+        await processEmailNotification(job.data);
+        break;
+      case 'initial-sync':
+        await processInitialSync(job.data);
+        break;
+      case 'manual-sync':
+        await processManualSync(job.data);
+        break;
+      default:
+        console.error(`[EmailWorker] Unknown job type: ${job.name}`);
+        throw new Error(`Unknown job type: ${job.name}`);
+    }
   },
   {
     connection: getRedisClient(),

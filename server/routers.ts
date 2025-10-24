@@ -18,9 +18,11 @@ import {
   getTags,
   getTagsByCategory,
   getCollectionsByUser,
+  getCollectionById,
   createCollection,
   addSwipeToCollection,
   removeSwipeFromCollection,
+  getSwipesByCollection,
 } from './db';
 import { 
   getAuthUrl, 
@@ -316,6 +318,33 @@ export const appRouter = router({
           description: input.description || null,
           isPublic: false,
         });
+      }),
+
+    get: protectedProcedure
+      .input(z.object({
+        id: z.string(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const collection = await getCollectionById(input.id);
+
+        if (!collection || collection.userId !== ctx.user.id) {
+          throw new Error('Collection not found');
+        }
+
+        const swipes = await getSwipesByCollection(input.id);
+
+        // Parse JSON fields
+        const parsedSwipes = swipes.map((swipe) => ({
+          ...swipe,
+          aiClassification: swipe.aiClassification ? JSON.parse(swipe.aiClassification as string) : null,
+          aiInsights: swipe.aiInsights ? JSON.parse(swipe.aiInsights as string) : null,
+          manualTags: swipe.manualTags ? JSON.parse(swipe.manualTags as string) : null,
+        }));
+
+        return {
+          collection,
+          swipes: parsedSwipes,
+        };
       }),
 
     addSwipe: protectedProcedure

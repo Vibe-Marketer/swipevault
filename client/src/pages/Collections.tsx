@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FolderOpen, Plus, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 
 export default function Collections() {
   const { data: collections, isLoading } = trpc.collections.list.useQuery();
@@ -110,22 +111,24 @@ export default function Collections() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {collections.map((collection) => (
-            <Card key={collection.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderOpen className="h-5 w-5" />
-                  {collection.name}
-                </CardTitle>
-                {collection.description && (
-                  <CardDescription>{collection.description}</CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  0 swipes
-                </p>
-              </CardContent>
-            </Card>
+            <Link key={collection.id} href={`/collections/${collection.id}`}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FolderOpen className="h-5 w-5" />
+                    {collection.name}
+                  </CardTitle>
+                  {collection.description && (
+                    <CardDescription>{collection.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Click to view collection
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

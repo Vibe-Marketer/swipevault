@@ -8,6 +8,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import Swipes from "./pages/Swipes";
 import Favorites from "./pages/Favorites";
 import Collections from "./pages/Collections";
+import CollectionDetail from "./pages/CollectionDetail";
 import Mailboxes from "./pages/Mailboxes";
 import Settings from "./pages/Settings";
 import SwipeDetail from "./pages/SwipeDetail";
@@ -28,6 +29,11 @@ function Router() {
       <Route path={"/collections"}>
         <DashboardLayout>
           <Collections />
+        </DashboardLayout>
+      </Route>
+      <Route path={"/collections/:id"}>
+        <DashboardLayout>
+          <CollectionDetail />
         </DashboardLayout>
       </Route>
       <Route path={"/mailboxes"}>
